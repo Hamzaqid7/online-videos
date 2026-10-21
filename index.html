@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaStream Player - Custom High-Performance Web Video Player</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom CSS for Theme Variables, Animations, and Micro-Interactions -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      /* Theme Palette: Decent Dark Purple */
+      --bg-purple-base: #130a21;
+      --bg-purple-card: #1c1033;
+      --bg-purple-elevated: #261646;
+
+      /* Theme Palette: Metallic Navy Blue */
+      --navy-base: #0e1726;
+      --navy-card: #162238;
+      --navy-border: #1e2d4a;
+      --navy-border-glow: rgba(30, 45, 74, 0.8);
+
+      /* Theme Palette: Sea Green Accent */
+      --sea-green-main: #2ee59d;
+      --sea-green-hover: #20c984;
+      --sea-green-dark: #10b981;
+      --sea-green-glow: rgba(46, 229, 157, 0.35);
+      --sea-green-subtle: rgba(46, 229, 157, 0.12);
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-purple-base);
+      color: #E2E8F0;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom Metallic Surfaces */
+    .metallic-surface {
+      background: linear-gradient(135deg, #162238 0%, #0e1726 100%);
+      border: 1px solid var(--navy-border);
+      box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
+    }
+
+    .metallic-card {
+      background: linear-gradient(145deg, #1e2d4a 0%, #121c2e 100%);
+      border: 1px solid rgba(46, 229, 157, 0.15);
+    }
+
+    .purple-card {
+      background: linear-gradient(145deg, #1c1033 0%, #130a21 100%);
+      border: 1px solid rgba(46, 229, 157, 0.18);
+    }
+
+    /* Sea Green Utility Styling */
+    .text-seagreen {
+      color: var(--sea-green-main);
+    }
+    .bg-seagreen {
+      background-color: var(--sea-green-main);
+    }
+    .border-seagreen {
+      border-color: var(--sea-green-main);
+    }
+
+    .sea-glow {
+      box-shadow: 0 0 20px var(--sea-green-glow);
+    }
+    .sea-glow-sm {
+      box-shadow: 0 0 10px var(--sea-green-glow);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-purple-base);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--navy-border);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--sea-green-hover);
+    }
+
+    /* Custom Input Seek Slider & Volume Sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: var(--sea-green-main);
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -4px;
+      box-shadow: 0 0 10px var(--sea-green-main);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.3);
+      background: #ffffff;
+    }
+
+    /* Video Overlay Controls Transition */
+    .video-controls-overlay {
+      background: linear-gradient(to top, rgba(14, 23, 38, 0.98) 0%, rgba(14, 23, 38, 0.5) 60%, transparent 100%);
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .hide-controls {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Dynamic Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: 100%;
+      transform: translateX(-50%);
+      background: rgba(14, 23, 38, 0.95);
+      border: 1px solid var(--sea-green-main);
+      color: #fff;
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      margin-bottom: 8px;
+    }
+
+    .progress-hover-zone:hover .tooltip {
+      opacity: 1;
+    }
+
+    /* Glassmorphism Popover */
+    .glass-popover {
+      background: rgba(22, 34, 56, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(46, 229, 157, 0.3);
+    }
+
+    /* Drag zone drag-over highlight */
+    .drag-over {
+      border-color: var(--sea-green-main) !important;
+      background-color: rgba(46, 229, 157, 0.1) !important;
+      transform: scale(1.005);
+    }
+
+    /* Theater Mode Responsive Adjustments */
+    .theater-mode #main-container {
+      max-width: 100% !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .theater-mode #player-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .theater-mode #video-wrapper-container {
+      max-height: 82vh;
+      border-radius: 0 !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-16 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ================= TOP APPLICATION BAR ================= -->
+  <header class="sticky top-0 z-40 w-full metallic-surface border-b border-slate-800/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-300 flex items-center justify-center sea-glow">
+        <i data-lucide="play" class="w-5 h-5 text-slate-950 fill-slate-950 ml-0.5"></i>
+      </div>
+      <div>
+        <span class="text-xl font-extrabold tracking-tight text-white flex items-center gap-1">
+          Nova<span class="text-seagreen">Stream</span>
+          <span class="text-[10px] bg-emerald-500/20 text-seagreen border border-emerald-500/40 px-2 py-0.5 rounded-full font-mono ml-2 font-semibold">v2.5 PRO</span>
+        </span>
+        <p class="text-[10px] text-slate-400 -mt-0.5 hidden sm:block">Zero-Latency Local Web Video Player</p>
+      </div>
+    </div>
+
+    <!-- Right Header Quick Controls -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <!-- Direct Upload Video Button -->
+      <button onclick="document.getElementById('file-input-header').click()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-seagreen text-slate-950 text-xs font-bold transition-all hover:bg-emerald-300 sea-glow-sm">
+        <input type="file" id="file-input-header" class="hidden" accept="video/*" onchange="handleFileSelect(event)">
+        <i data-lucide="upload" class="w-4 h-4"></i>
+        <span>Upload Local File</span>
+      </button>
+
+      <!-- Keyboard Shortcuts Modal Opener -->
+      <button onclick="toggleModal('shortcutsModal')" class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:border-emerald-500 text-slate-300 hover:text-seagreen text-xs font-medium transition-colors" title="Keyboard Hotkeys">
+        <i data-lucide="keyboard" class="w-4 h-4 text-seagreen"></i>
+        <span class="hidden md:inline">Hotkeys Guide</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN WORKSPACE CONTAINER ================= -->
+  <main id="main-container" class="flex-1 max-w-[1700px] w-full mx-auto p-4 sm:p-6 transition-all duration-300">
+    <div id="player-layout" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- ================= LEFT COLUMN: MAIN PLAYER & STREAMLINED INFORMATIONAL PANELS ================= -->
+      <section id="left-column" class="lg:col-span-8 flex flex-col gap-6">
+
+        <!-- DRAG & DROP QUICK UPLOAD BANNER -->
+        <div 
+          id="dropzone-banner" 
+          class="metallic-card rounded-2xl border-2 border-dashed border-emerald-500/30 hover:border-emerald-500/80 p-4 transition-all flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left cursor-pointer group"
+          onclick="document.getElementById('file-input-banner').click()"
+        >
+          <input type="file" id="file-input-banner" class="hidden" accept="video/*" onchange="handleFileSelect(event)">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-seagreen shrink-0 group-hover:scale-105 transition-transform">
+              <i data-lucide="hard-drive-upload" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white group-hover:text-seagreen transition-colors">Drag & Drop Local Video File Here</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Supports MP4, WebM, MKV, MOV, and AVI directly from your storage</p>
+            </div>
+          </div>
+          <button class="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-seagreen font-bold text-xs hover:bg-emerald-500 hover:text-slate-950 transition-all shrink-0 flex items-center gap-1.5 shadow-md">
+            <i data-lucide="folder-open" class="w-4 h-4"></i> Browse Local Storage
+          </button>
+        </div>
+
+        <!-- MAIN VIDEO PLAYER CONTAINER -->
+        <div 
+          id="video-wrapper-container" 
+          class="relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80 group select-none focus:outline-none"
+          tabindex="0"
+        >
+          <!-- Video Element -->
+          <video 
+            id="main-video" 
+            class="w-full h-full object-contain cursor-pointer"
+            poster="https://i.postimg.cc/sftWwp2f/qura-pic.png"
+            preload="metadata"
+            crossorigin="anonymous"
+          >
+            <source src="videos/quranic.mp4" type="video/mp4">
+            Your browser does not support HTML5 video playback.
+          </video>
+
+          <!-- Play/Pause Big Center Animated Indicator -->
+          <div id="center-play-btn" class="absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-300 opacity-0 scale-75">
+            <div class="w-20 h-20 rounded-full bg-slate-950/80 backdrop-blur-md border border-emerald-500/50 text-seagreen flex items-center justify-center sea-glow">
+              <i id="center-play-icon" data-lucide="play" class="w-10 h-10 fill-current ml-1"></i>
+            </div>
+          </div>
+
+          <!-- Seek Ripple Feedback -->
+          <div id="seek-ripple" class="absolute inset-y-0 w-1/4 flex items-center justify-center bg-emerald-500/10 opacity-0 pointer-events-none transition-opacity duration-300">
+            <span class="text-seagreen font-bold text-xs bg-slate-950/90 px-3 py-1.5 rounded-full border border-emerald-500/40 font-mono"></span>
+          </div>
+
+          <!-- CUSTOM CONTROLS OVERLAY -->
+          <div id="controls-overlay" class="video-controls-overlay absolute inset-x-0 bottom-0 flex flex-col justify-end p-3 sm:p-4 opacity-100 transition-opacity duration-300">
+            
+            <!-- Seek Progress Bar with Hover Preview Tooltip -->
+            <div class="progress-hover-zone relative w-full h-3 mb-2 flex items-center cursor-pointer group/seek" id="progress-container">
+              <div id="time-tooltip" class="tooltip font-mono">00:00</div>
+              <div class="w-full h-1.5 group-hover/seek:h-2.5 bg-slate-700/60 rounded-full overflow-hidden transition-all relative">
+                <div id="buffer-bar" class="absolute top-0 left-0 h-full bg-slate-500/40 w-0 transition-all"></div>
+                <div id="progress-bar" class="absolute top-0 left-0 h-full bg-gradient-to-r from-teal-400 to-emerald-400 w-0 relative">
+                  <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-emerald-500 shadow-md opacity-0 group-hover/seek:opacity-100 transition-opacity"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Controls Row -->
+            <div class="flex items-center justify-between text-white gap-2">
+              
+              <!-- Left Controls: Play, Rewind, Forward, Volume, Time -->
+              <div class="flex items-center gap-2 sm:gap-3">
+                <button id="btn-play-pause" class="text-seagreen hover:text-white transition-colors p-1.5 hover:bg-slate-800/60 rounded-lg" title="Play/Pause (Space/K)">
+                  <i data-lucide="play" class="w-6 h-6 fill-current" id="icon-play-pause"></i>
+                </button>
+
+                <button id="btn-rewind" class="text-slate-300 hover:text-seagreen p-1 rounded transition-colors" title="Rewind 5s (← / J)">
+                  <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+
+                <button id="btn-forward" class="text-slate-300 hover:text-seagreen p-1 rounded transition-colors" title="Forward 5s (→ / L)">
+                  <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Volume Slider Block -->
+                <div class="flex items-center group/vol gap-1.5 ml-1">
+                  <button id="btn-mute" class="text-seagreen hover:text-white p-1 rounded transition-colors" title="Mute/Unmute (M)">
+                    <i data-lucide="volume-2" class="w-5 h-5" id="icon-volume"></i>
+                  </button>
+                  <div class="w-0 group-hover/vol:w-20 sm:w-20 transition-all duration-300 overflow-hidden flex items-center">
+                    <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="1" class="w-16 accent-emerald-400">
+                  </div>
+                </div>
+
+                <!-- Time Code -->
+                <div class="text-xs font-mono text-slate-300 ml-1">
+                  <span id="current-time" class="text-white font-semibold">00:00</span>
+                  <span class="text-slate-500">/</span>
+                  <span id="total-duration" class="text-slate-400">00:00</span>
+                </div>
+              </div>
+
+              <!-- Right Controls: Speed, Loop, PiP, Theater, Fullscreen -->
+              <div class="flex items-center gap-1 sm:gap-2">
+                
+                <!-- Speed Menu Opener Button -->
+                <div class="relative">
+                  <button id="btn-speed-menu" class="text-seagreen hover:text-white p-1.5 hover:bg-slate-800/60 rounded-lg transition-colors flex items-center gap-1.5" title="Playback Speed Controls">
+                    <i data-lucide="gauge" class="w-5 h-5"></i>
+                    <span id="speed-badge" class="text-[10px] font-bold font-mono bg-emerald-500/20 text-seagreen border border-emerald-500/40 px-1.5 py-0.5 rounded">1.0x</span>
+                  </button>
+
+                  <!-- SPEED CONTROLLER POPOVER -->
+                  <div id="speed-popover" class="hidden absolute right-0 bottom-12 w-72 glass-popover rounded-2xl p-4 shadow-2xl z-50 text-xs">
+                    <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-700/60">
+                      <span class="font-bold text-seagreen flex items-center gap-1.5">
+                        <i data-lucide="zap" class="w-4 h-4"></i> Speed Control
+                      </span>
+                      <span id="current-speed-label" class="text-slate-300 font-mono font-bold">1.00x</span>
+                    </div>
+
+                    <!-- Preset Options -->
+                    <div class="grid grid-cols-5 gap-1.5 mb-3.5">
+                      <button data-speed="0.25" class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">0.25x</button>
+                      <button data-speed="0.5"  class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">0.50x</button>
+                      <button data-speed="0.75" class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">0.75x</button>
+                      <button data-speed="1.0"  class="speed-btn active-speed px-1.5 py-1 rounded-lg bg-seagreen text-slate-950 font-bold font-mono transition-colors">1.00x</button>
+                      <button data-speed="1.25" class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">1.25x</button>
+                      <button data-speed="1.5"  class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">1.50x</button>
+                      <button data-speed="1.75" class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">1.75x</button>
+                      <button data-speed="2.0"  class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">2.00x</button>
+                      <button data-speed="2.5"  class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">2.50x</button>
+                      <button data-speed="3.0"  class="speed-btn px-1.5 py-1 rounded-lg bg-slate-800/70 hover:bg-emerald-500/20 hover:text-seagreen text-slate-300 font-mono transition-colors">3.00x</button>
+                    </div>
+
+                    <!-- Custom Micro Precision Slider -->
+                    <div class="space-y-1.5 pt-1 border-t border-slate-700/60">
+                      <div class="flex justify-between text-[11px] text-slate-400">
+                        <span>Micro-Speed Adjuster:</span>
+                        <span id="custom-speed-val" class="text-seagreen font-mono font-bold">1.00x</span>
+                      </div>
+                      <input id="speed-slider" type="range" min="0.25" max="3.0" step="0.05" value="1.0" class="w-full accent-emerald-400">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Loop Toggle -->
+                <button id="btn-loop" class="text-slate-400 hover:text-seagreen p-1.5 hover:bg-slate-800/60 rounded-lg transition-colors" title="Toggle Video Loop">
+                  <i data-lucide="repeat" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Picture-in-Picture Toggle -->
+                <button id="btn-pip" class="text-slate-300 hover:text-seagreen p-1.5 hover:bg-slate-800/60 rounded-lg transition-colors" title="Picture in Picture (P)">
+                  <i data-lucide="pip" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Theater Mode Toggle -->
+                <button id="btn-theater" class="hidden md:block text-slate-300 hover:text-seagreen p-1.5 hover:bg-slate-800/60 rounded-lg transition-colors" title="Theater Mode (T)">
+                  <i data-lucide="layout" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Fullscreen Toggle -->
+                <button id="btn-fullscreen" class="text-seagreen hover:text-white p-1.5 hover:bg-slate-800/60 rounded-lg transition-colors" title="Fullscreen (F)">
+                  <i data-lucide="maximize" class="w-5 h-5" id="icon-fullscreen"></i>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- DYNAMIC VIDEO METADATA BAR -->
+        <div class="metallic-surface rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+          <div class="flex items-start justify-between gap-4">
+            <h1 id="video-title-display" class="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
+              Tears of Steel - High Definition Visual Effects Showcase
+            </h1>
+            <span id="meta-resolution" class="bg-emerald-500/10 text-seagreen border border-emerald-500/30 font-mono text-xs px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1 font-semibold">
+              <i data-lucide="monitor" class="w-3.5 h-3.5"></i> 1080p HD
+            </span>
+          </div>
+
+          <!-- Video Specs Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-xs">
+            <div class="flex items-center gap-2 text-slate-300 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
+              <i data-lucide="file-video" class="w-4 h-4 text-seagreen shrink-0"></i>
+              <div class="truncate">
+                <p class="text-[10px] text-slate-500 uppercase font-semibold">Filename</p>
+                <p id="meta-filename" class="font-mono font-medium truncate text-white">TearsOfSteel.mp4</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-slate-300 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
+              <i data-lucide="hard-drive" class="w-4 h-4 text-seagreen shrink-0"></i>
+              <div>
+                <p class="text-[10px] text-slate-500 uppercase font-semibold">File Size</p>
+                <p id="meta-filesize" class="font-mono font-medium text-white">128 MB</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-slate-300 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
+              <i data-lucide="clock" class="w-4 h-4 text-seagreen shrink-0"></i>
+              <div>
+                <p class="text-[10px] text-slate-500 uppercase font-semibold">Duration</p>
+                <p id="meta-duration" class="font-mono font-medium text-white">12:14</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-slate-300 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
+              <i data-lucide="cpu" class="w-4 h-4 text-seagreen shrink-0"></i>
+              <div>
+                <p class="text-[10px] text-slate-500 uppercase font-semibold">Playback Engine</p>
+                <p class="font-mono font-medium text-white">Browser Blob API</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= REPLACED CONTENT: ABOUT NOVASTREAM PLAYER PANEL ================= -->
+        <div class="purple-card rounded-2xl p-5 sm:p-6 flex flex-col gap-4">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-5 h-5 text-seagreen"></i>
+              About NovaStream Custom Video Engine
+            </h2>
+            <span class="text-xs text-seagreen font-mono bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">Privacy First</span>
+          </div>
+
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+            NovaStream Player is a client-side media playback web engine designed for high performance, zero data-upload buffering, and custom playback control. Unlike traditional streaming platforms, local video files selected from your computer or phone are processed completely inside your device’s browser memory without uploading to any remote server.
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80 flex flex-col gap-1.5">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-seagreen">
+                <i data-lucide="shield-check" class="w-4 h-4"></i>
+              </div>
+              <h3 class="text-xs font-bold text-white">100% Private Local Memory</h3>
+              <p class="text-[11px] text-slate-400">Videos never leave your local machine. Blob URLs render content directly on hardware GPU acceleration.</p>
+            </div>
+
+            <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80 flex flex-col gap-1.5">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-seagreen">
+                <i data-lucide="sliders" class="w-4 h-4"></i>
+              </div>
+              <h3 class="text-xs font-bold text-white">Sub-Frame Speed Control</h3>
+              <p class="text-[11px] text-slate-400">Micro-adjust speed from 0.25x slow motion up to 3.0x rapid analysis in 0.05x increments.</p>
+            </div>
+
+            <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80 flex flex-col gap-1.5">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-seagreen">
+                <i data-lucide="monitor-play" class="w-4 h-4"></i>
+              </div>
+              <h3 class="text-xs font-bold text-white">Multi-Format Support</h3>
+              <p class="text-[11px] text-slate-400">Play MP4, WebM, MOV, MKV, and AVI seamlessly without installing third-party codecs.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= REPLACED CONTENT: HASSLE-FREE USER GUIDE PANEL ================= -->
+        <div class="metallic-surface rounded-2xl p-5 sm:p-6 flex flex-col gap-4">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="book-open" class="w-5 h-5 text-seagreen"></i>
+              Hassle-Free User Guide
+            </h2>
+            <span class="text-xs text-slate-400">Simple 4-Step Instructions</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Step 1 -->
+            <div class="flex items-start gap-3 bg-slate-900/50 p-3.5 rounded-xl border border-slate-800">
+              <div class="w-7 h-7 rounded-full bg-seagreen text-slate-950 font-extrabold text-xs flex items-center justify-center shrink-0">1</div>
+              <div class="space-y-0.5">
+                <h3 class="text-xs font-bold text-white">Load or Drag Local Files</h3>
+                <p class="text-[11px] text-slate-400">Click the top "Upload Local File" button or drop video files onto the player zone to begin immediately.</p>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="flex items-start gap-3 bg-slate-900/50 p-3.5 rounded-xl border border-slate-800">
+              <div class="w-7 h-7 rounded-full bg-seagreen text-slate-950 font-extrabold text-xs flex items-center justify-center shrink-0">2</div>
+              <div class="space-y-0.5">
+                <h3 class="text-xs font-bold text-white">Adjust Playback Speed</h3>
+                <p class="text-[11px] text-slate-400">Click the speed gauge icon (<i data-lucide="gauge" class="w-3 h-3 inline text-seagreen"></i>) to select preset multipliers or fine-tune using the smooth speed slider.</p>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="flex items-start gap-3 bg-slate-900/50 p-3.5 rounded-xl border border-slate-800">
+              <div class="w-7 h-7 rounded-full bg-seagreen text-slate-950 font-extrabold text-xs flex items-center justify-center shrink-0">3</div>
+              <div class="space-y-0.5">
+                <h3 class="text-xs font-bold text-white">Utilize Keyboard Shortcuts</h3>
+                <p class="text-[11px] text-slate-400">Use standard hotkeys like <kbd class="font-mono bg-slate-800 border border-slate-700 px-1 text-seagreen rounded">Space</kbd> for Play/Pause, <kbd class="font-mono bg-slate-800 border border-slate-700 px-1 text-seagreen rounded">F</kbd> for Fullscreen, and <kbd class="font-mono bg-slate-800 border border-slate-700 px-1 text-seagreen rounded">P</kbd> for PiP mode.</p>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="flex items-start gap-3 bg-slate-900/50 p-3.5 rounded-xl border border-slate-800">
+              <div class="w-7 h-7 rounded-full bg-seagreen text-slate-950 font-extrabold text-xs flex items-center justify-center shrink-0">4</div>
+              <div class="space-y-0.5">
+                <h3 class="text-xs font-bold text-white">Switch Upload Queue</h3>
+                <p class="text-[11px] text-slate-400">All videos loaded in your current browser session are queued in the right sidebar for instant 1-click playback switching.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= RIGHT COLUMN: PLAYLIST SIDEBAR & INTERACTIVE HOTKEY REFERENCE ================= -->
+      <aside id="right-column" class="lg:col-span-4 flex flex-col gap-6">
+
+        <!-- SESSION UPLOADS QUEUE / PLAYLIST -->
+        <div class="metallic-surface rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+            <h2 class="font-bold text-white text-sm flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-seagreen"></i>
+              Uploaded Media Queue
+            </h2>
+            <span id="queue-count" class="text-xs bg-emerald-500/20 text-seagreen border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-mono">1 video</span>
+          </div>
+
+          <!-- Uploaded Videos Container -->
+          <div id="media-queue-list" class="flex flex-col gap-2.5 max-h-72 overflow-y-auto pr-1">
+            
+            <!-- Default Sample Clip -->
+            <div data-src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" data-title="Tears of Steel - High Definition Visual Effects Showcase" class="queue-item active border border-emerald-500/60 bg-emerald-500/10 rounded-xl p-2.5 flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-slate-800/80">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-seagreen shrink-0">
+                  <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                </div>
+                <div class="overflow-hidden">
+                  <h4 class="font-bold text-seagreen text-xs truncate">Tears of Steel (Sample)</h4>
+                  <p class="text-[10px] text-slate-400 font-mono mt-0.5">Default Sample • 12:14</p>
+                </div>
+              </div>
+              <span class="text-[10px] text-seagreen bg-emerald-500/20 px-2 py-0.5 rounded font-bold uppercase">Playing</span>
+            </div>
+
+          </div>
+
+          <!-- Quick Drop Target Button -->
+          <button onclick="document.getElementById('file-input-sidebar').click()" class="mt-1 w-full py-2.5 rounded-xl border border-dashed border-slate-700 hover:border-emerald-500/70 bg-slate-900/60 text-slate-300 hover:text-seagreen text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+            <input type="file" id="file-input-sidebar" class="hidden" accept="video/*" onchange="handleFileSelect(event)">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-seagreen"></i>
+            <span>Add More Local Clips</span>
+          </button>
+        </div>
+
+        <!-- HOTKEY REFERENCE GRID CARD -->
+        <div class="purple-card rounded-2xl p-5 flex flex-col gap-3">
+          <div class="flex items-center justify-between pb-2.5 border-b border-slate-800/80">
+            <h3 class="font-bold text-white text-sm flex items-center gap-2">
+              <i data-lucide="command" class="w-4 h-4 text-seagreen"></i>
+              Hotkey Reference Grid
+            </h3>
+            <span class="text-[10px] text-slate-400">Quick Controls</span>
+          </div>
+
+          <div class="grid grid-cols-1 gap-2 text-xs">
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Play / Pause</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">Space / K</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Seek Backward / Forward</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">← / →</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Volume Up / Down</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">↑ / ↓</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Speed Adjust (+ / -)</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">&gt; / &lt;</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Toggle Fullscreen</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">F</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Toggle Theater Mode</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">T</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Picture-in-Picture</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">P</kbd>
+            </div>
+
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-300">Mute Audio</span>
+              <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">M</kbd>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- ================= SHORTCUTS MODAL ================= -->
+  <div id="shortcutsModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="metallic-surface w-full max-w-md rounded-2xl p-6 border border-emerald-500/40 shadow-2xl relative">
+      <button onclick="toggleModal('shortcutsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+        <i data-lucide="keyboard" class="w-5 h-5 text-seagreen"></i> NovaStream Hotkeys Guide
+      </h3>
+      <p class="text-xs text-slate-400 mb-4">Master video navigation with instant keyboard controls.</p>
+      
+      <div class="space-y-2 text-xs my-4">
+        <div class="flex justify-between items-center p-2 rounded bg-slate-900/70 border border-slate-800">
+          <span class="text-slate-200">Play / Pause</span>
+          <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">Space / K</kbd>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-slate-900/70 border border-slate-800">
+          <span class="text-slate-200">Seek 5s Back / Forward</span>
+          <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">← / →</kbd>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-slate-900/70 border border-slate-800">
+          <span class="text-slate-200">Increase / Decrease Speed</span>
+          <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">&gt; / &lt;</kbd>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-slate-900/70 border border-slate-800">
+          <span class="text-slate-200">Fullscreen</span>
+          <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">F</kbd>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-slate-900/70 border border-slate-800">
+          <span class="text-slate-200">Theater Mode</span>
+          <kbd class="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-seagreen font-mono font-bold">T</kbd>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="toggleModal('shortcutsModal')" class="px-5 py-2 rounded-xl bg-seagreen text-slate-950 font-bold text-xs hover:bg-emerald-300 transition-colors">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PLAYER JAVASCRIPT CONTROLLER ================= -->
+  <script>
+    // Safe Lucide Icon Renderer
+    function renderIcons() {
+      if (window.lucide) lucide.createIcons();
+    }
+    renderIcons();
+
+    // DOM Element References
+    const video = document.getElementById('main-video');
+    const playerContainer = document.getElementById('video-wrapper-container');
+    const controlsOverlay = document.getElementById('controls-overlay');
+    
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const iconPlayPause = document.getElementById('icon-play-pause');
+    const centerPlayBtn = document.getElementById('center-play-btn');
+    const centerPlayIcon = document.getElementById('center-play-icon');
+    
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const bufferBar = document.getElementById('buffer-bar');
+    const timeTooltip = document.getElementById('time-tooltip');
+    
+    const currentTimeEl = document.getElementById('current-time');
+    const totalDurationEl = document.getElementById('total-duration');
+    
+    const btnMute = document.getElementById('btn-mute');
+    const iconVolume = document.getElementById('icon-volume');
+    const volumeSlider = document.getElementById('volume-slider');
+    
+    const btnRewind = document.getElementById('btn-rewind');
+    const btnForward = document.getElementById('btn-forward');
+    
+    const btnSpeedMenu = document.getElementById('btn-speed-menu');
+    const speedPopover = document.getElementById('speed-popover');
+    const speedBadge = document.getElementById('speed-badge');
+    const speedSlider = document.getElementById('speed-slider');
+    const customSpeedVal = document.getElementById('custom-speed-val');
+    const currentSpeedLabel = document.getElementById('current-speed-label');
+    
+    const btnLoop = document.getElementById('btn-loop');
+    const btnPip = document.getElementById('btn-pip');
+    const btnTheater = document.getElementById('btn-theater');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    const iconFullscreen = document.getElementById('icon-fullscreen');
+
+    const videoTitleDisplay = document.getElementById('video-title-display');
+    const seekRipple = document.getElementById('seek-ripple');
+
+    let controlsTimeout = null;
+    let isSeeking = false;
+    let queueList = [];
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const toastContainer = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl border transition-all transform translate-y-2 opacity-0 flex items-center gap-2 ${
+        type === 'error' ? 'bg-red-950/90 text-red-200 border-red-500/50' : 'bg-slate-900/90 text-seagreen border-emerald-500/50 sea-glow-sm'
+      }`;
+      toast.innerHTML = `<i data-lucide="${type === 'error' ? 'alert-triangle' : 'check-circle'}" class="w-4 h-4 shrink-0"></i> <span>${message}</span>`;
+      toastContainer.appendChild(toast);
+      renderIcons();
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // Time Format Helper (hh:mm:ss)
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds === Infinity) return "00:00";
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      
+      if (h > 0) {
+        return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+      }
+      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // File Size Format Helper
+    function formatFileSize(bytes) {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Play / Pause Toggle
+    function togglePlayPause() {
+      if (video.paused || video.ended) {
+        video.play().catch(err => showToast("Playback error: " + err.message, "error"));
+      } else {
+        video.pause();
+      }
+    }
+
+    function updatePlayIcon() {
+      if (video.paused) {
+        iconPlayPause.setAttribute('data-lucide', 'play');
+        centerPlayIcon.setAttribute('data-lucide', 'play');
+        showCenterAnimation('play');
+      } else {
+        iconPlayPause.setAttribute('data-lucide', 'pause');
+        centerPlayIcon.setAttribute('data-lucide', 'pause');
+        showCenterAnimation('pause');
+      }
+      renderIcons();
+    }
+
+    function showCenterAnimation(type) {
+      centerPlayBtn.classList.remove('opacity-0', 'scale-75');
+      centerPlayBtn.classList.add('opacity-100', 'scale-100');
+      setTimeout(() => {
+        centerPlayBtn.classList.remove('opacity-100', 'scale-100');
+        centerPlayBtn.classList.add('opacity-0', 'scale-75');
+      }, 400);
+    }
+
+    // Progress Bar and Buffer Updates
+    function updateProgress() {
+      if (!isSeeking && video.duration) {
+        const percentage = (video.currentTime / video.duration) * 100;
+        progressBar.style.width = `${percentage}%`;
+        currentTimeEl.textContent = formatTime(video.currentTime);
+      }
+    }
+
+    function updateBuffer() {
+      if (video.buffered.length > 0 && video.duration) {
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+        const percentage = (bufferedEnd / video.duration) * 100;
+        bufferBar.style.width = `${percentage}%`;
+      }
+    }
+
+    function handleSeek(e) {
+      const rect = progressContainer.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      if (video.duration) {
+        video.currentTime = pos * video.duration;
+        progressBar.style.width = `${pos * 100}%`;
+      }
+    }
+
+    // Tooltip Preview on Seek Bar
+    progressContainer.addEventListener('mousemove', (e) => {
+      const rect = progressContainer.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      if (video.duration) {
+        const hoverTime = pos * video.duration;
+        timeTooltip.textContent = formatTime(hoverTime);
+        timeTooltip.style.left = `${e.clientX - rect.left}px`;
+      }
+    });
+
+    // Volume Adjustment
+    function setVolume(val) {
+      video.volume = val;
+      video.muted = (val === 0);
+      updateVolumeIcon();
+    }
+
+    function updateVolumeIcon() {
+      if (video.muted || video.volume === 0) {
+        iconVolume.setAttribute('data-lucide', 'volume-x');
+      } else if (video.volume < 0.5) {
+        iconVolume.setAttribute('data-lucide', 'volume-1');
+      } else {
+        iconVolume.setAttribute('data-lucide', 'volume-2');
+      }
+      renderIcons();
+    }
+
+    // Playback Speed Adjustment
+    function setSpeed(rate) {
+      rate = parseFloat(rate);
+      video.playbackRate = rate;
+      speedBadge.textContent = `${rate.toFixed(1)}x`;
+      currentSpeedLabel.textContent = `${rate.toFixed(2)}x`;
+      customSpeedVal.textContent = `${rate.toFixed(2)}x`;
+      speedSlider.value = rate;
+
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        if (parseFloat(btn.dataset.speed) === rate) {
+          btn.classList.add('bg-seagreen', 'text-slate-950', 'font-bold');
+          btn.classList.remove('bg-slate-800/70', 'text-slate-300');
+        } else {
+          btn.classList.remove('bg-seagreen', 'text-slate-950', 'font-bold');
+          btn.classList.add('bg-slate-800/70', 'text-slate-300');
+        }
+      });
+    }
+
+    // Seek Feedback Indicator Ripple
+    function triggerSeekRipple(text, alignLeft = false) {
+      const span = seekRipple.querySelector('span');
+      span.textContent = text;
+      seekRipple.style.left = alignLeft ? '0' : 'auto';
+      seekRipple.style.right = alignLeft ? 'auto' : '0';
+      seekRipple.classList.remove('opacity-0');
+      seekRipple.classList.add('opacity-100');
+      setTimeout(() => {
+        seekRipple.classList.remove('opacity-100');
+        seekRipple.classList.add('opacity-0');
+      }, 400);
+    }
+
+    // Fullscreen Mode
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        playerContainer.requestFullscreen().catch(err => showToast("Fullscreen error: " + err.message, "error"));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      if (document.fullscreenElement) {
+        iconFullscreen.setAttribute('data-lucide', 'minimize');
+      } else {
+        iconFullscreen.setAttribute('data-lucide', 'maximize');
+      }
+      renderIcons();
+    });
+
+    // Theater Mode
+    function toggleTheaterMode() {
+      document.body.classList.toggle('theater-mode');
+    }
+
+    // Picture-in-Picture
+    async function togglePip() {
+      try {
+        if (video !== document.pictureInPictureElement) {
+          await video.requestPictureInPicture();
+        } else {
+          await document.exitPictureInPicture();
+        }
+      } catch (error) {
+        showToast("PiP not supported or failed: " + error.message, "error");
+      }
+    }
+
+    // Video Loop
+    btnLoop.addEventListener('click', () => {
+      video.loop = !video.loop;
+      btnLoop.classList.toggle('text-seagreen');
+      btnLoop.classList.toggle('text-slate-400');
+      showToast(video.loop ? "Looping Enabled" : "Looping Disabled");
+    });
+
+    // Auto-hide Controls Overlay
+    function resetControlsTimer() {
+      controlsOverlay.classList.remove('hide-controls');
+      clearTimeout(controlsTimeout);
+      if (!video.paused) {
+        controlsTimeout = setTimeout(() => {
+          controlsOverlay.classList.add('hide-controls');
+        }, 3000);
+      }
+    }
+
+    playerContainer.addEventListener('mousemove', resetControlsTimer);
+    playerContainer.addEventListener('mouseleave', () => {
+      if (!video.paused) controlsOverlay.classList.add('hide-controls');
+    });
+
+    // LOCAL FILE UPLOAD PROCESSING ENGINE
+    function handleFileSelect(event) {
+      const file = event.target.files && event.target.files[0];
+      if (file) {
+        processUploadedVideo(file);
+      }
+    }
+
+    function processUploadedVideo(file) {
+      if (!file.type.startsWith('video/')) {
+        showToast("Selected file is not a valid video format!", "error");
+        return;
+      }
+
+      // Create Blob Object URL
+      const objectUrl = URL.createObjectURL(file);
+      video.src = objectUrl;
+      video.play().then(() => {
+        showToast(`Now Playing: ${file.name}`);
+      }).catch(() => {
+        showToast("Media loaded from local device", "info");
+      });
+
+      // Dynamic Title & Specs Update
+      videoTitleDisplay.textContent = file.name;
+      document.getElementById('meta-filename').textContent = file.name;
+      document.getElementById('meta-filesize').textContent = formatFileSize(file.size);
+
+      // Extract Resolution & Duration when metadata loads
+      video.onloadedmetadata = () => {
+        totalDurationEl.textContent = formatTime(video.duration);
+        document.getElementById('meta-duration').textContent = formatTime(video.duration);
+        document.getElementById('meta-resolution').innerHTML = `<i data-lucide="monitor" class="w-3.5 h-3.5"></i> ${video.videoWidth || 'HD'}x${video.videoHeight || '1080'}`;
+        renderIcons();
+      };
+
+      // Append to Media Queue List
+      addFileToQueue(file, objectUrl);
+    }
+
+    function addFileToQueue(file, objectUrl) {
+      const queueContainer = document.getElementById('media-queue-list');
+      
+      queueList.push({ file, objectUrl });
+      document.getElementById('queue-count').textContent = `${queueList.length + 1} videos`;
+
+      const queueItem = document.createElement('div');
+      queueItem.className = 'queue-item border border-slate-800 bg-slate-900/60 hover:border-emerald-500/40 rounded-xl p-2.5 flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-slate-800/80';
+      queueItem.innerHTML = `
+        <div class="flex items-center gap-3 overflow-hidden">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-seagreen shrink-0">
+            <i data-lucide="video" class="w-4 h-4"></i>
+          </div>
+          <div class="overflow-hidden">
+            <h4 class="font-bold text-slate-200 text-xs truncate">${file.name}</h4>
+            <p class="text-[10px] text-slate-400 font-mono mt-0.5">${formatFileSize(file.size)} • Local Clip</p>
+          </div>
+        </div>
+        <button class="p-1 text-slate-400 hover:text-seagreen" title="Play Now">
+          <i data-lucide="play-circle" class="w-5 h-5"></i>
+        </button>
+      `;
+
+      queueItem.addEventListener('click', () => {
+        video.src = objectUrl;
+        video.play();
+        videoTitleDisplay.textContent = file.name;
+        document.getElementById('meta-filename').textContent = file.name;
+        document.getElementById('meta-filesize').textContent = formatFileSize(file.size);
+
+        document.querySelectorAll('.queue-item').forEach(i => {
+          i.classList.remove('border-emerald-500/60', 'bg-emerald-500/10');
+          i.classList.add('border-slate-800', 'bg-slate-900/60');
+          const statusBadge = i.querySelector('span.font-bold');
+          if (statusBadge) statusBadge.remove();
+        });
+
+        queueItem.classList.add('border-emerald-500/60', 'bg-emerald-500/10');
+        queueItem.classList.remove('border-slate-800', 'bg-slate-900/60');
+        showToast(`Playing: ${file.name}`);
+      });
+
+      queueContainer.prepend(queueItem);
+      renderIcons();
+    }
+
+    // Drag & Drop Handling
+    const dropzoneBanner = document.getElementById('dropzone-banner');
+
+    [dropzoneBanner, playerContainer].forEach(zone => {
+      if (!zone) return;
+      ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.add('drag-over');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.remove('drag-over');
+        }, false);
+      });
+
+      zone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+          processUploadedVideo(files[0]);
+        }
+      });
+    });
+
+    // Event Listeners
+    video.addEventListener('click', togglePlayPause);
+    video.addEventListener('play', updatePlayIcon);
+    video.addEventListener('pause', updatePlayIcon);
+    video.addEventListener('timeupdate', updateProgress);
+    video.addEventListener('progress', updateBuffer);
+    video.addEventListener('loadedmetadata', () => {
+      totalDurationEl.textContent = formatTime(video.duration);
+      document.getElementById('meta-duration').textContent = formatTime(video.duration);
+    });
+
+    btnPlayPause.addEventListener('click', togglePlayPause);
+    
+    // Seek Dragging
+    progressContainer.addEventListener('click', handleSeek);
+    progressContainer.addEventListener('mousedown', () => { isSeeking = true; });
+    document.addEventListener('mouseup', () => { isSeeking = false; });
+    document.addEventListener('mousemove', (e) => {
+      if (isSeeking) handleSeek(e);
+    });
+
+    // Rewind / Forward Controls
+    btnRewind.addEventListener('click', () => {
+      video.currentTime = Math.max(0, video.currentTime - 5);
+      triggerSeekRipple('-5s', true);
+    });
+    btnForward.addEventListener('click', () => {
+      video.currentTime = Math.min(video.duration, video.currentTime + 5);
+      triggerSeekRipple('+5s', false);
+    });
+
+    // Volume Slider
+    btnMute.addEventListener('click', () => {
+      video.muted = !video.muted;
+      updateVolumeIcon();
+    });
+    volumeSlider.addEventListener('input', (e) => {
+      setVolume(e.target.value);
+    });
+
+    // Speed Controller Popover
+    btnSpeedMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      speedPopover.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setSpeed(btn.dataset.speed);
+        speedPopover.classList.add('hidden');
+      });
+    });
+
+    speedSlider.addEventListener('input', (e) => {
+      setSpeed(e.target.value);
+    });
+
+    document.addEventListener('click', () => {
+      speedPopover.classList.add('hidden');
+    });
+
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+    btnTheater.addEventListener('click', toggleTheaterMode);
+    btnPip.addEventListener('click', togglePip);
+
+    // KEYBOARD SHORTCUTS
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      switch(e.key.toLowerCase()) {
+        case ' ':
+        case 'k':
+          e.preventDefault();
+          togglePlayPause();
+          break;
+        case 'f':
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case 'm':
+          e.preventDefault();
+          video.muted = !video.muted;
+          updateVolumeIcon();
+          break;
+        case 't':
+          e.preventDefault();
+          toggleTheaterMode();
+          break;
+        case 'p':
+          e.preventDefault();
+          togglePip();
+          break;
+        case 'arrowleft':
+        case 'j':
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 5);
+          triggerSeekRipple('-5s', true);
+          break;
+        case 'arrowright':
+        case 'l':
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration, video.currentTime + 5);
+          triggerSeekRipple('+5s', false);
+          break;
+        case 'arrowup':
+          e.preventDefault();
+          setVolume(Math.min(1, video.volume + 0.1));
+          volumeSlider.value = video.volume;
+          break;
+        case 'arrowdown':
+          e.preventDefault();
+          setVolume(Math.max(0, video.volume - 0.1));
+          volumeSlider.value = video.volume;
+          break;
+        case '>':
+          setSpeed(Math.min(3.0, video.playbackRate + 0.25));
+          break;
+        case '<':
+          setSpeed(Math.max(0.25, video.playbackRate - 0.25));
+          break;
+      }
+    });
+
+    // Default Queue Item Click
+    document.querySelector('.queue-item').addEventListener('click', function() {
+      video.src = this.dataset.src;
+      video.play();
+      videoTitleDisplay.textContent = this.dataset.title;
+    });
+
+    function toggleModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.toggle('hidden');
+    }
+  </script>
+</body>
+</html>
